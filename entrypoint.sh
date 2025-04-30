@@ -1,4 +1,5 @@
 #!/bin/bash
+set -e # Exit immediately if a command exits with a non-zero status.
 
 echo "--- Starting entrypoint script ---"
 
@@ -13,6 +14,17 @@ else
 fi
 
 echo "Final log directory set to: ${SPARK_HISTORY_FS_LOGDIRECTORY}"
+
+# Check if the log directory exists and list its contents
+echo "Checking if log directory [${SPARK_HISTORY_FS_LOGDIRECTORY}] exists..."
+if [ ! -d "${SPARK_HISTORY_FS_LOGDIRECTORY}" ]; then
+  echo "Error: Log directory ${SPARK_HISTORY_FS_LOGDIRECTORY} does not exist inside the container." >&2
+  echo "Please ensure the volume is mounted correctly and points to this path." >&2
+  exit 1
+fi
+echo "Log directory found. Listing contents:"
+ls -la "${SPARK_HISTORY_FS_LOGDIRECTORY}"
+echo "-------------------------------------"
 
 # Create Spark configuration file dynamically
 echo "Creating ${SPARK_HOME}/conf/spark-defaults.conf file..."

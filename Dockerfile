@@ -28,9 +28,25 @@ RUN curl -fsSL "https://archive.apache.org/dist/spark/spark-${SPARK_VERSION}/spa
 # ── Configuration & Log dir ───────────────────────────────────────────────────
 RUN mkdir -p "${SPARK_HOME}/conf" "${SPARK_LOG_DIR}"
 
+# ── Non-root user ──────────────────────────────────────────────────────────────
+ARG USER=spark
+ARG GROUP=spark
+ARG UID=1001
+ARG GID=1001
+
+RUN groupadd -g ${GID} ${GROUP} && \
+    useradd -u ${UID} -g ${GID} -m -s /bin/bash ${USER}
+
+# ── Permissions ────────────────────────────────────────────────────────────────
+# Grant ownership of SPARK_HOME and SPARK_LOG_DIR to the spark user
+RUN chown -R ${USER}:${GROUP} ${SPARK_HOME} ${SPARK_LOG_DIR}
+
 # ── Entrypoint ─────────────────────────────────────────────────────────────────
-COPY entrypoint.sh /entrypoint.sh
+COPY --chown=${USER}:${GROUP} entrypoint.sh /entrypoint.sh
 RUN chmod +x /entrypoint.sh
+
+# Switch to non-root user
+USER ${USER}
 
 EXPOSE 18080
 
