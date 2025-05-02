@@ -14,7 +14,7 @@ Dataproc Serverless jobs store their event logs in GCS. This local History Serve
 Build the image using the following command. You can adjust `SPARK_VERSION` and `HADOOP_VERSION` if needed.
 
 ```bash
-sudo docker build --no-cache --network=host \
+docker build --no-cache --network=host \
     --build-arg SPARK_VERSION="3.5.1" \
     --build-arg HADOOP_VERSION="3" \
     -t local-spark-history-server .
@@ -35,43 +35,24 @@ sudo docker build --no-cache --network=host \
     # Note: We copy the contents of spark-job-history/* directly into ./spark-logs/
     gsutil -m cp -r "<YOUR_GCS_LOG_DIRECTORY_PATH>/spark-job-history/*" ./spark-logs/
     ```
-    *   `-m`: Performs a parallel copy, which can speed up downloading multiple files.
-    *   `-r`: Copies recursively (needed if there are subdirectories within `spark-job-history`, though usually not the case for event logs).
+    *   `-m`: Performs a parallel copy.
+    *   `-r`: Copies recursively.
     *   Make sure the destination directory (`./spark-logs/`) exists.
-    *   **Important:** Spark History Server typically ignores files ending with `.inprogress`. These files are usually renamed automatically by Spark/Dataproc when a job completes successfully. Ensure your jobs have finished and the log files in GCS (and thus the downloaded copies) do not have the `.inprogress` suffix.
+    *   **Important:** Spark History Server typically ignores files ending with `.inprogress`. Ensure your jobs have finished and the log files in GCS (and thus the downloaded copies) do not have the `.inprogress` suffix.
 
 3.  **Run the Docker container:**
     Mount your local log directory into the container and point the History Server to it.
 
     ```bash
-    sudo docker run --rm --name spark-history \\
-      -p 18080:18080 \\
-      -v "$(pwd)/spark-logs:/opt/spark/logs:ro" \\
-      -e SPARK_HISTORY_FS_LOGDIRECTORY="/opt/spark/logs" \\
+    docker run --rm --name spark-history \
+      -p 18080:18080 \
+      -v "$(pwd)/spark-logs:/opt/spark/logs:ro" \
+      -e SPARK_HISTORY_FS_LOGDIRECTORY="/opt/spark/logs" \
       local-spark-history-server
     ```
 
-    *   `--rm`: Automatically remove the container when it exits.
-    *   `-d`: Run in detached mode. (Note: `--rm` and `-d` are often used together, but if you want to see logs directly, omit `-d`).
-    *   `--name spark-history`: Assign a name to the container.
-    *   `-p 18080:18080`: Map port 18080 on your host to port 18080 in the container.
-    *   `-v "$(pwd)/spark-logs:/opt/spark/logs:ro"`: Mounts your local `spark-logs` directory (assuming it's in the current directory) to `/opt/spark/logs` inside the container in read-only mode (`:ro`). **Adjust the host path (`$(pwd)/spark-logs`) if your logs are elsewhere.**
+    *   `-v "$(pwd)/spark-logs:/opt/spark/logs:ro"`: Mounts your local `spark-logs` directory to `/opt/spark/logs` inside the container in read-only mode (`:ro`). **Adjust the host path (`$(pwd)/spark-logs`) if your logs are elsewhere.**
     *   `-e SPARK_HISTORY_FS_LOGDIRECTORY="/opt/spark/logs"`: Sets the path *inside the container* where the Spark History Server should look for event logs. This matches the container path used in the volume mount.
 
 4.  **Access the Spark UI:**
-    Open your web browser and navigate to `http://localhost:18080`. The Spark History Server UI should load, showing the completed applications from the downloaded logs.
-
-## Stopping the Container
-
-```bash
-sudo docker stop spark-history
-# The container will be removed automatically if started with --rm
-# sudo docker rm spark-history # Optional: remove the container if not started with --rm
-```
-
-## Refreshing Logs
-
-If new job logs appear in GCS, you'll need to:
-1.  Stop the container (`sudo docker stop spark-history`).
-2.  Re-run the `gsutil` command to download the new/updated logs into your local directory.
-3.  Restart the container using the `docker run` command from step 3 above.
+    Open your web browser and navigate to `http://localhost:18080`.
